@@ -25,7 +25,7 @@ export default function Home() {
           href="mailto:joseungtae1@example.com" 
           className="neo-border bg-yellow-400 text-black px-6 py-3 font-black text-sm md:text-lg uppercase transition-all duration-200 neo-shadow neo-shadow-hover"
         >
-          Let's Talk
+          Let&apos;s Talk
         </a>
       </nav>
 
@@ -35,7 +35,7 @@ export default function Home() {
         <section className="md:col-span-12 lg:col-span-7 flex flex-col justify-center gap-6">
           <div className="neo-border bg-purple-300 p-8 md:p-12 neo-shadow h-full flex flex-col justify-center text-black">
             <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black uppercase leading-[0.9] tracking-tighter mb-6">
-              Hi, I'm <br /> 
+              Hi, I&apos;m <br /> 
               <span className="text-white custom-text-shadow">Jo</span><br />
               <span className="text-white custom-text-shadow">Seungtae.</span>
             </h1>
