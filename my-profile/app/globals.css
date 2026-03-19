@@ -1,24 +1,22 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: #FDF8E1;
+  --color-foreground: #171717;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  
-  /* Custom Animations for modern design */
-  --animate-blob: blob 7s infinite;
+}
+
+:root {
+  --background: #FDF8E1;
+  --foreground: #171717;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #09090b;
-    --foreground: #fafafa;
+    /* 강렬한 다크 모드 Neobrutalism 테마 */
+    --background: #121212;
+    --foreground: #FDF8E1;
   }
 }
 
@@ -28,20 +26,39 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Neobrutalism 도트 그리드 패턴 배경 */
+  background-image: radial-gradient(var(--foreground) 1.5px, transparent 1.5px);
+  background-size: 32px 32px;
 }
 
-/* Custom background animation keyframes */
-@keyframes blob {
-  0% { transform: translate(0px, 0px) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
-  100% { transform: translate(0px, 0px) scale(1); }
+/* Neobrutalism 공통 유틸리티 */
+.neo-border {
+  border: 4px solid var(--foreground);
 }
 
-.animation-delay-2000 {
-  animation-delay: 2s;
+.neo-shadow {
+  box-shadow: 8px 8px 0px 0px var(--foreground);
 }
 
-.animation-delay-4000 {
-  animation-delay: 4s;
+.neo-shadow-hover:hover {
+  box-shadow: 2px 2px 0px 0px var(--foreground);
+  transform: translate(6px, 6px);
+}
+
+.neo-shadow-active:active {
+  box-shadow: 0px 0px 0px 0px var(--foreground);
+  transform: translate(8px, 8px);
+}
+
+.custom-text-shadow {
+  text-shadow: 4px 4px 0px var(--foreground);
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); } 
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
 }
