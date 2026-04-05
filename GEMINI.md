@@ -64,6 +64,7 @@ Uses a sub-collection structure for stability and isolation.
 - `npm run lint`: Run ESLint check.
 
 ## 7. Development Conventions
+- **Language**: All conversations, documentation (including plans, tasks, and walkthroughs), and code comments MUST be written in Korean (한국어로 작성할 것).
 - **Inline First**: All data modifications must prioritize inline editing via `@inline-edit.tsx`.
 - **Fallback Handling**: Use Lucide Link icon (🔗) if favicon retrieval fails.
 - **Security**: Manage secrets via environment variables; use `NEXT_PUBLIC_` prefix only for client-side keys.
