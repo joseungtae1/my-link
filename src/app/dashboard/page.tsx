@@ -14,57 +14,37 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth();
+  // 임시 우회를 위한 목(Mock) 데이터 및 로딩 비활성화
+  const user = { uid: "mock-user-123" };
+  const loading = false;
   const router = useRouter();
 
-  const [profile, setProfile] = useState<{ displayName: string; username: string; bio: string } | null>(null);
-  const [links, setLinks] = useState<{ id: string; title: string; url: string; faviconUrl: string }[]>([]);
+  const [profile, setProfile] = useState<{ displayName: string; username: string; bio: string } | null>({
+    displayName: "demo",
+    username: "로컬 테스트 유저",
+    bio: "여기를 클릭해 한 줄 소개를 수정해 보세요."
+  });
+  
+  const [links, setLinks] = useState<{ id: string; title: string; url: string; faviconUrl: string }[]>([
+    { id: "mock-1", title: "내 블로그", url: "https://blog.example.com", faviconUrl: "" }
+  ]);
 
   const [isAddLinkDialogOpen, setIsAddLinkDialogOpen] = useState(false);
   const [newLinkTitle, setNewLinkTitle] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
 
+  // 로그인 체크 및 파이어베이스 데이터 수신 로직은 사용자가 추후 작성하도록 주석 처리
+  /*
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/");
-    }
+    if (!loading && !user) router.push("/");
   }, [user, loading, router]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const userRef = doc(db, "users", user.uid);
-    const unsubscribeProfile = onSnapshot(userRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setProfile({
-          displayName: data.displayName || "",
-          username: data.username || "사용자",
-          bio: data.bio || "",
-        });
-      }
-    });
-
-    const linksRef = collection(db, "users", user.uid, "links");
-    const q = query(linksRef, orderBy("createdAt", "asc"));
-    const unsubscribeLinks = onSnapshot(q, (snapshot) => {
-      const linksData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as any[];
-      setLinks(linksData);
-    });
-
-    return () => {
-      unsubscribeProfile();
-      unsubscribeLinks();
-    };
-  }, [user]);
+  
+  useEffect(() => { ...파이어베이스 페칭 로직... }, [user]);
+  */
 
   const handleUpdateProfile = async (field: "username" | "bio", value: string) => {
-    if (!user) return;
-    const userRef = doc(db, "users", user.uid);
-    await updateDoc(userRef, { [field]: value });
+    // 로컬 상태로만 업데이트
+    setProfile(prev => prev ? { ...prev, [field]: value } : null);
   };
 
   const handleAddLink = async () => {
@@ -110,30 +90,29 @@ export default function DashboardPage() {
   };
 
   const handleUpdateLink = async (id: string, field: "title" | "url", value: string) => {
-    if (!user) return;
-    const linkRef = doc(db, "users", user.uid, "links", id);
-    let updateData: any = { [field]: value };
-    
-    // Auto-fetch favicon on URL update
-    if (field === "url" && value.trim() !== "") {
-      try {
-        const targetUrl = value.startsWith('http') ? value : `https://${value}`;
-        const urlObj = new URL(targetUrl);
-        updateData.url = targetUrl;
-        updateData.faviconUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
-      } catch (e) {
-        // Invalid URL, ignore favicon
+    setLinks(prev => prev.map(link => {
+      if (link.id !== id) return link;
+      
+      let updatedLink = { ...link, [field]: value };
+      
+      // Auto-fetch favicon on URL update
+      if (field === "url" && value.trim() !== "") {
+        try {
+          const targetUrl = value.startsWith('http') ? value : `https://${value}`;
+          const urlObj = new URL(targetUrl);
+          updatedLink.url = targetUrl;
+          updatedLink.faviconUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
+        } catch (e) {
+          // Invalid URL, ignore favicon
+        }
       }
-    }
-    
-    await updateDoc(linkRef, updateData);
+      return updatedLink;
+    }));
   };
 
   const handleDeleteLink = async (id: string) => {
-    if (!user) return;
     if (!confirm("해당 링크를 삭제하시겠습니까?")) return;
-    const linkRef = doc(db, "users", user.uid, "links", id);
-    await deleteDoc(linkRef);
+    setLinks(prev => prev.filter(link => link.id !== id));
   };
 
   const handleLogout = async () => {
