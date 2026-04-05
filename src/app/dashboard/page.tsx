@@ -9,6 +9,9 @@ import { logOut } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { InlineEdit } from "@/components/inline-edit";
 import { Plus, Trash, LogOut, ArrowRight, Link as LinkIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -16,6 +19,10 @@ export default function DashboardPage() {
 
   const [profile, setProfile] = useState<{ displayName: string; username: string; bio: string } | null>(null);
   const [links, setLinks] = useState<{ id: string; title: string; url: string; faviconUrl: string }[]>([]);
+
+  const [isAddLinkDialogOpen, setIsAddLinkDialogOpen] = useState(false);
+  const [newLinkTitle, setNewLinkTitle] = useState("");
+  const [newLinkUrl, setNewLinkUrl] = useState("");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -61,6 +68,8 @@ export default function DashboardPage() {
   };
 
   const handleAddLink = async () => {
+    // 기존 서버 저장 로직은 주석 처리
+    /*
     if (!user) return;
     const linksRef = collection(db, "users", user.uid, "links");
     await addDoc(linksRef, {
@@ -69,6 +78,35 @@ export default function DashboardPage() {
       faviconUrl: "",
       createdAt: serverTimestamp()
     });
+    */
+  };
+
+  const handleDialogSubmit = () => {
+    let faviconUrl = "";
+    if (newLinkUrl.trim() !== "") {
+      try {
+        const targetUrl = newLinkUrl.startsWith('http') ? newLinkUrl : `https://${newLinkUrl}`;
+        const urlObj = new URL(targetUrl);
+        faviconUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
+      } catch (e) {
+        // Invalid URL, ignore favicon
+      }
+    }
+    
+    // 로컬 상태로 추가
+    const newLink = {
+      id: "local-" + Date.now().toString(),
+      title: newLinkTitle || "새로운 링크",
+      url: newLinkUrl,
+      faviconUrl: faviconUrl
+    };
+    
+    setLinks(prev => [...prev, newLink]);
+    
+    // 모달 닫기 및 폼 초기화
+    setNewLinkTitle("");
+    setNewLinkUrl("");
+    setIsAddLinkDialogOpen(false);
   };
 
   const handleUpdateLink = async (id: string, field: "title" | "url", value: string) => {
@@ -204,13 +242,55 @@ export default function DashboardPage() {
               </div>
             ))}
 
-            <Button 
-              onClick={handleAddLink}
-              variant="outline" 
-              className="w-full py-6 mt-4 border-dashed border-2 border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700 bg-transparent"
-            >
-              <Plus size={18} className="mr-2" /> 새 링크 추가하기
-            </Button>
+            <Dialog open={isAddLinkDialogOpen} onOpenChange={setIsAddLinkDialogOpen}>
+              <DialogTrigger
+                render={
+                  <Button 
+                    variant="outline" 
+                    className="w-full py-6 mt-4 border-dashed border-2 border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700 bg-transparent"
+                  />
+                }
+              >
+                <Plus size={18} className="mr-2" /> 새 링크 추가하기
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>새 링크 추가</DialogTitle>
+                  <DialogDescription>
+                    추가할 링크의 제목과 URL을 입력해주세요.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="title" className="text-right">
+                      제목
+                    </Label>
+                    <Input
+                      id="title"
+                      value={newLinkTitle}
+                      onChange={(e) => setNewLinkTitle(e.target.value)}
+                      placeholder="예: 내 블로그"
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="url" className="text-right">
+                      URL
+                    </Label>
+                    <Input
+                      id="url"
+                      value={newLinkUrl}
+                      onChange={(e) => setNewLinkUrl(e.target.value)}
+                      placeholder="https://example.com"
+                      className="col-span-3"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="button" onClick={handleDialogSubmit}>추가하기</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             
           </div>
 
