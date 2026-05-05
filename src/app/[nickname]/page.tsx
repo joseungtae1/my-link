@@ -33,7 +33,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ nickna
         setProfile(userDoc.data() as any);
 
         const linksRef = collection(db, "users", userDoc.id, "links");
-        const linksQuery = query(linksRef, orderBy("createdAt", "asc"));
+        const linksQuery = query(linksRef, orderBy("createdAt", "desc"));
         const linksSnapshot = await getDocs(linksQuery);
         
         const fetchedLinks = linksSnapshot.docs.map(d => ({

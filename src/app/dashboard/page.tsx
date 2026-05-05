@@ -52,8 +52,8 @@ export default function DashboardPage() {
     });
 
     // 링크 목록 리스너
-    const linksRef = collection(db, "users", user.uid, "links");
-    const q = query(linksRef, orderBy("createdAt", "asc"));
+    const linksRef = collection(db, "users", "anonymous", "links");
+    const q = query(linksRef, orderBy("createdAt", "desc"));
     const unsubscribeLinks = onSnapshot(q, (querySnapshot) => {
       const fetchedLinks = querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -110,7 +110,7 @@ export default function DashboardPage() {
     }
 
     // 파이어베이스에 추가
-    const linksRef = collection(db, "users", user.uid, "links");
+    const linksRef = collection(db, "users", "anonymous", "links");
     await addDoc(linksRef, {
       title: newLinkTitle,
       url: finalUrl,
@@ -141,7 +141,7 @@ export default function DashboardPage() {
       return { ...link, [field]: value };
     }));
 
-    const linkRef = doc(db, "users", user.uid, "links", id);
+    const linkRef = doc(db, "users", "anonymous", "links", id);
     let updateData: any = { [field]: field === "clickCount" ? parseInt(value) : value };
 
     // URL 업데이트 시 파비콘 갱신
@@ -167,7 +167,7 @@ export default function DashboardPage() {
     if (!user) return;
     setLinks(prev => prev.filter(link => link.id !== id));
     if (!id.startsWith("local-")) {
-      const linkRef = doc(db, "users", user.uid, "links", id);
+      const linkRef = doc(db, "users", "anonymous", "links", id);
       await deleteDoc(linkRef);
     }
   };

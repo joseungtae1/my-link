@@ -1,7 +1,0 @@
-feat: 파이어베이스 실 연동 적용 및 로컬 데이터 제거
-
-- `.env.local` 파일에 실제 Firebase 설정값 적용
-- `firebase.ts`에 Analytics 모듈 추가 연동
-- 홈 화면 구글 소셜 로그인 로직 복구
-- 대시보드(`dashboard/page.tsx`)에 Firestore 기반 프로필/링크 실시간 CRUD 연동
-- 방문자 페이지(`[nickname]/page.tsx`)에 URL 파라미터 기반 Firestore Query 및 조회수 증가 로직 구현
