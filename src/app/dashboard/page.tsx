@@ -189,7 +189,58 @@ export default function DashboardPage() {
 
           {/* Links Editor */}
           <div className="space-y-4 pt-4">
-            <h3 className="text-lg font-bold text-slate-900">내 링크 목록</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-900">내 링크 목록</h3>
+              <Dialog open={isAddLinkDialogOpen} onOpenChange={setIsAddLinkDialogOpen}>
+                <DialogTrigger
+                  render={
+                    <Button
+                      className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm gap-2"
+                      size="sm"
+                    />
+                  }
+                >
+                  <Plus size={16} /> 새 링크 추가
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>새 링크 추가</DialogTitle>
+                    <DialogDescription>
+                      추가할 링크의 제목과 URL을 입력해주세요.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="title" className="text-right">
+                        제목
+                      </Label>
+                      <Input
+                        id="title"
+                        value={newLinkTitle}
+                        onChange={(e) => setNewLinkTitle(e.target.value)}
+                        placeholder="예: 내 블로그"
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="url" className="text-right">
+                        URL
+                      </Label>
+                      <Input
+                        id="url"
+                        value={newLinkUrl}
+                        onChange={(e) => setNewLinkUrl(e.target.value)}
+                        placeholder="https://example.com"
+                        className="col-span-3"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" onClick={handleDialogSubmit} className="bg-blue-600 hover:bg-blue-700 text-white">추가하기</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
 
             {links.map((link) => (
               <div key={link.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm group flex gap-4 transition-all">
@@ -232,55 +283,6 @@ export default function DashboardPage() {
               </div>
             ))}
 
-            <Dialog open={isAddLinkDialogOpen} onOpenChange={setIsAddLinkDialogOpen}>
-              <DialogTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    className="w-full py-6 mt-4 border-dashed border-2 border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700 bg-transparent"
-                  />
-                }
-              >
-                <Plus size={18} className="mr-2" /> 새 링크 추가하기
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>새 링크 추가</DialogTitle>
-                  <DialogDescription>
-                    추가할 링크의 제목과 URL을 입력해주세요.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="title" className="text-right">
-                      제목
-                    </Label>
-                    <Input
-                      id="title"
-                      value={newLinkTitle}
-                      onChange={(e) => setNewLinkTitle(e.target.value)}
-                      placeholder="예: 내 블로그"
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="url" className="text-right">
-                      URL
-                    </Label>
-                    <Input
-                      id="url"
-                      value={newLinkUrl}
-                      onChange={(e) => setNewLinkUrl(e.target.value)}
-                      placeholder="https://example.com"
-                      className="col-span-3"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="button" onClick={handleDialogSubmit}>추가하기</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
 
           </div>
 
