@@ -8,7 +8,7 @@ import { doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, quer
 import { logOut } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { InlineEdit } from "@/components/inline-edit";
-import { Plus, Trash, LogOut, ArrowRight, Link as LinkIcon } from "lucide-react";
+import { Plus, Trash, LogOut, ArrowRight, Link as LinkIcon, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,12 @@ export default function DashboardPage() {
   const [newLinkTitle, setNewLinkTitle] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
   const [error, setError] = useState("");
+
+  const [isEditLinkDialogOpen, setIsEditLinkDialogOpen] = useState(false);
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+  const [editLinkTitle, setEditLinkTitle] = useState("");
+  const [editLinkUrl, setEditLinkUrl] = useState("");
+  const [editError, setEditError] = useState("");
 
   // 로그인되지 않은 사용자는 홈으로 리다이렉트
   useEffect(() => {
@@ -129,6 +135,49 @@ export default function DashboardPage() {
     setNewLinkUrl("");
     setError("");
     setIsAddLinkDialogOpen(false);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingLinkId) return;
+    
+    if (editLinkTitle.trim() === "" || editLinkUrl.trim() === "") {
+      setEditError("최소 한 글자 이상은 입력해야 합니다.");
+      return;
+    }
+
+    setEditError("");
+    let faviconUrl = "";
+    let finalUrl = editLinkUrl.trim();
+
+    const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+    
+    try {
+      const targetUrl = finalUrl.startsWith('http') ? finalUrl : `https://${finalUrl}`;
+      const urlObj = new URL(targetUrl);
+      
+      if (!domainRegex.test(urlObj.hostname)) {
+        throw new Error("Invalid domain");
+      }
+      
+      finalUrl = targetUrl;
+      faviconUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
+    } catch (e) {
+      setEditError("존재하지 않는 링크 입니다.");
+      return;
+    }
+
+    const linkRef = doc(db, "users", "anonymous", "links", editingLinkId);
+    await updateDoc(linkRef, {
+      title: editLinkTitle,
+      url: finalUrl,
+      faviconUrl: faviconUrl
+    });
+
+    setIsEditLinkDialogOpen(false);
+    setEditingLinkId(null);
+    setEditLinkTitle("");
+    setEditLinkUrl("");
+    setEditError("");
   };
 
   const handleUpdateLink = async (id: string, field: "title" | "url" | "clickCount", value: string) => {
@@ -311,18 +360,8 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex-1 space-y-2 overflow-hidden">
-                  <InlineEdit
-                    value={link.title}
-                    onSave={(val) => handleUpdateLink(link.id, "title", val)}
-                    placeholder="새로운 링크 타이틀"
-                    className="font-bold text-slate-900 w-full block"
-                  />
-                  <InlineEdit
-                    value={link.url}
-                    onSave={(val) => handleUpdateLink(link.id, "url", val)}
-                    placeholder="https://를 포함한 주소 입력"
-                    className="text-sm text-slate-500 font-mono w-full block"
-                  />
+                  <p className="font-bold text-slate-900 w-full block truncate">{link.title}</p>
+                  <p className="text-sm text-slate-500 font-mono w-full block truncate">{link.url}</p>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -330,8 +369,20 @@ export default function DashboardPage() {
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Clicks</p>
                     <p className="text-lg font-mono font-bold text-slate-900">{link.clickCount}</p>
                   </div>
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => handleDeleteLink(link.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                    <button 
+                      onClick={() => {
+                        setEditingLinkId(link.id);
+                        setEditLinkTitle(link.title);
+                        setEditLinkUrl(link.url);
+                        setIsEditLinkDialogOpen(true);
+                      }} 
+                      className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md"
+                      title="수정"
+                    >
+                      <Pencil size={18} />
+                    </button>
+                    <button onClick={() => handleDeleteLink(link.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md" title="삭제">
                       <Trash size={18} />
                     </button>
                   </div>
@@ -341,6 +392,58 @@ export default function DashboardPage() {
 
 
           </div>
+
+          {/* Edit Link Dialog */}
+          <Dialog open={isEditLinkDialogOpen} onOpenChange={(open) => {
+            setIsEditLinkDialogOpen(open);
+            if (!open) {
+              setEditError("");
+              setEditingLinkId(null);
+            }
+          }}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>링크 수정</DialogTitle>
+                <DialogDescription>
+                  링크의 제목과 URL을 수정할 수 있습니다.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-title" className="text-right">
+                    제목
+                  </Label>
+                  <Input
+                    id="edit-title"
+                    value={editLinkTitle}
+                    onChange={(e) => setEditLinkTitle(e.target.value)}
+                    placeholder="예: 내 블로그"
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-url" className="text-right">
+                    URL
+                  </Label>
+                  <Input
+                    id="edit-url"
+                    value={editLinkUrl}
+                    onChange={(e) => setEditLinkUrl(e.target.value)}
+                    placeholder="https://example.com"
+                    className="col-span-3"
+                  />
+                </div>
+              </div>
+              {editError && (
+                <p className="text-sm text-red-500 font-medium mb-4 text-center">
+                  {editError}
+                </p>
+              )}
+              <DialogFooter>
+                <Button type="button" onClick={handleEditSubmit} className="bg-blue-600 hover:bg-blue-700 text-white">저장하기</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
         </div>
       </div>
