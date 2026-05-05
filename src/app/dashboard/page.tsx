@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { logOut } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { InlineEdit } from "@/components/inline-edit";
@@ -12,113 +12,166 @@ import { Plus, Trash, LogOut, ArrowRight, Link as LinkIcon } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { dummyLinks } from "@/data/links";
 
 export default function DashboardPage() {
-  // 임시 우회를 위한 목(Mock) 데이터 및 로딩 비활성화
-  const user = { uid: "mock-user-123" };
-  const loading = false;
+  const { user, loading } = useAuth();
   const router = useRouter();
 
-  const [profile, setProfile] = useState<{ displayName: string; username: string; bio: string } | null>({
-    displayName: "demo",
-    username: "로컬 테스트 유저",
-    bio: "여기를 클릭해 한 줄 소개를 수정해 보세요."
-  });
-
-  const [links, setLinks] = useState<{ id: string; title: string; url: string; faviconUrl: string; clickCount: number }[]>([
-    { id: "mock-1", title: "내 블로그", url: "https://blog.example.com", faviconUrl: "", clickCount: 0 }
-  ]);
+  const [profile, setProfile] = useState<{ displayName: string; username: string; bio: string } | null>(null);
+  const [links, setLinks] = useState<{ id: string; title: string; url: string; faviconUrl: string; clickCount: number }[]>([]);
 
   const [isAddLinkDialogOpen, setIsAddLinkDialogOpen] = useState(false);
   const [newLinkTitle, setNewLinkTitle] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
+  const [error, setError] = useState("");
 
-  // 로그인 체크 및 파이어베이스 데이터 수신 로직은 사용자가 추후 작성하도록 주석 처리
-  /*
+  // 로그인되지 않은 사용자는 홈으로 리다이렉트
   useEffect(() => {
     if (!loading && !user) router.push("/");
   }, [user, loading, router]);
   
-  useEffect(() => { ...파이어베이스 페칭 로직... }, [user]);
-  */
+  // 파이어베이스 실시간 데이터 패칭
+  useEffect(() => {
+    if (!user) return;
+
+    // 프로필 데이터 리스너
+    const userRef = doc(db, "users", user.uid);
+    const unsubscribeProfile = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setProfile(docSnap.data() as any);
+      } else {
+        // 새 유저일 경우 기본값 설정
+        const emailPrefix = user.email ? user.email.split('@')[0] : `user_${Date.now()}`;
+        setProfile({
+          displayName: emailPrefix,
+          username: user.displayName || "새 사용자",
+          bio: "여기를 클릭해 한 줄 소개를 수정해 보세요."
+        });
+      }
+    });
+
+    // 링크 목록 리스너
+    const linksRef = collection(db, "users", user.uid, "links");
+    const q = query(linksRef, orderBy("createdAt", "asc"));
+    const unsubscribeLinks = onSnapshot(q, (querySnapshot) => {
+      const fetchedLinks = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as any[];
+      setLinks(fetchedLinks);
+    });
+
+    return () => {
+      unsubscribeProfile();
+      unsubscribeLinks();
+    };
+  }, [user]);
 
   const handleUpdateProfile = async (field: "username" | "bio", value: string) => {
-    // 로컬 상태로만 업데이트
+    if (!user || !profile) return;
+    
+    // 로컬 상태 즉시 업데이트 (Optimistic UI)
     setProfile(prev => prev ? { ...prev, [field]: value } : null);
+
+    // 파이어베이스 업데이트 (없으면 생성 병합)
+    const userRef = doc(db, "users", user.uid);
+    await setDoc(userRef, { [field]: value }, { merge: true });
   };
 
-  const handleAddLink = async () => {
-    // 기존 서버 저장 로직은 주석 처리
-    /*
+
+  const handleDialogSubmit = async () => {
     if (!user) return;
-    const linksRef = collection(db, "users", user.uid, "links");
-    await addDoc(linksRef, {
-      title: "새로운 링크",
-      url: "",
-      faviconUrl: "",
-      createdAt: serverTimestamp()
-    });
-    */
-  };
-
-  const handleDialogSubmit = () => {
-    let faviconUrl = "";
-    if (newLinkUrl.trim() !== "") {
-      try {
-        const targetUrl = newLinkUrl.startsWith('http') ? newLinkUrl : `https://${newLinkUrl}`;
-        const urlObj = new URL(targetUrl);
-        faviconUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
-      } catch (e) {
-        // Invalid URL, ignore favicon
-      }
+    
+    if (newLinkTitle.trim() === "" || newLinkUrl.trim() === "") {
+      setError("최소 한글자 이상은 입력해야 합니다.");
+      return;
     }
 
-    // 로컬 상태로 추가
-    const newLink = {
-      id: "local-" + Date.now().toString(),
-      title: newLinkTitle || "새로운 링크",
-      url: newLinkUrl,
+    setError("");
+    let faviconUrl = "";
+    let finalUrl = newLinkUrl.trim();
+
+    const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+    
+    try {
+      const targetUrl = finalUrl.startsWith('http') ? finalUrl : `https://${finalUrl}`;
+      const urlObj = new URL(targetUrl);
+      
+      if (!domainRegex.test(urlObj.hostname)) {
+        throw new Error("Invalid domain");
+      }
+      
+      finalUrl = targetUrl;
+      faviconUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
+    } catch (e) {
+      setError("존재하지 않는 링크입니다.");
+      return;
+    }
+
+    // 파이어베이스에 추가
+    const linksRef = collection(db, "users", user.uid, "links");
+    await addDoc(linksRef, {
+      title: newLinkTitle,
+      url: finalUrl,
       faviconUrl: faviconUrl,
-      clickCount: 0
-    };
+      clickCount: 0,
+      createdAt: serverTimestamp()
+    });
 
-    setLinks(prev => [...prev, newLink]);
+    // 만약 프로필이 DB에 없는 상태라면 이 시점에 생성해줍니다.
+    if (profile) {
+      const userRef = doc(db, "users", user.uid);
+      await setDoc(userRef, profile, { merge: true });
+    }
 
-    // 모달 닫기 및 폼 초기화
     setNewLinkTitle("");
     setNewLinkUrl("");
+    setError("");
     setIsAddLinkDialogOpen(false);
   };
 
   const handleUpdateLink = async (id: string, field: "title" | "url" | "clickCount", value: string) => {
+    if (!user) return;
+    
+    // 로컬 상태 즉시 업데이트
     setLinks(prev => prev.map(link => {
       if (link.id !== id) return link;
-
-      if (field === "clickCount") {
-        return { ...link, clickCount: parseInt(value) };
-      }
-
-      let updatedLink = { ...link, [field]: value };
-
-      // Auto-fetch favicon on URL update
-      if (field === "url" && value.trim() !== "") {
-        try {
-          const targetUrl = value.startsWith('http') ? value : `https://${value}`;
-          const urlObj = new URL(targetUrl);
-          updatedLink.url = targetUrl;
-          updatedLink.faviconUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
-        } catch (e) {
-          // Invalid URL, ignore favicon
-        }
-      }
-      return updatedLink;
+      if (field === "clickCount") return { ...link, clickCount: parseInt(value) };
+      return { ...link, [field]: value };
     }));
+
+    const linkRef = doc(db, "users", user.uid, "links", id);
+    let updateData: any = { [field]: field === "clickCount" ? parseInt(value) : value };
+
+    // URL 업데이트 시 파비콘 갱신
+    if (field === "url" && value.trim() !== "") {
+      try {
+        const targetUrl = value.startsWith('http') ? value : `https://${value}`;
+        const urlObj = new URL(targetUrl);
+        updateData.url = targetUrl;
+        updateData.faviconUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
+      } catch (e) {
+        // 무시
+      }
+    }
+
+    // 새 링크(id에 local- 포함)가 아직 DB에 완전히 써지기 전에 클릭되면 에러날 수 있지만, 
+    // real-time listener가 id를 덮어씌워 주므로 일반적으로 문제 없습니다.
+    if (!id.startsWith("local-")) {
+      await updateDoc(linkRef, updateData);
+    }
   };
 
   const handleDeleteLink = async (id: string) => {
-    if (!confirm("해당 링크를 삭제하시겠습니까?")) return;
+    if (!user) return;
     setLinks(prev => prev.filter(link => link.id !== id));
+    if (!id.startsWith("local-")) {
+      const linkRef = doc(db, "users", user.uid, "links", id);
+      await deleteDoc(linkRef);
+    }
   };
+
 
   const handleLogout = async () => {
     await logOut();
@@ -147,14 +200,9 @@ export default function DashboardPage() {
       <div className="flex-1 overflow-y-auto p-6 md:p-10">
         <div className="max-w-2xl mx-auto space-y-8">
 
-          <div className="flex justify-between items-end pb-4 border-b border-slate-200">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight text-slate-900">프로필 편집</h2>
-              <p className="text-slate-500 mt-1">인라인 텍스트를 클릭하여 바로 수정하세요.</p>
-            </div>
-            <a href={`/${profile.displayName}`} target="_blank" className="text-sm font-medium text-blue-600 hover:underline flex items-center gap-1">
-              내 링크 방문하기 <ArrowRight size={14} />
-            </a>
+          <div className="pb-4 border-b border-slate-200">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">프로필 편집</h2>
+            <p className="text-slate-500 mt-1">인라인 텍스트를 클릭하여 바로 수정하세요.</p>
           </div>
 
           {/* Profile Editor */}
@@ -191,7 +239,10 @@ export default function DashboardPage() {
           <div className="space-y-4 pt-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-bold text-slate-900">내 링크 목록</h3>
-              <Dialog open={isAddLinkDialogOpen} onOpenChange={setIsAddLinkDialogOpen}>
+              <Dialog open={isAddLinkDialogOpen} onOpenChange={(open) => {
+                setIsAddLinkDialogOpen(open);
+                if (!open) setError("");
+              }}>
                 <DialogTrigger
                   render={
                     <Button
@@ -235,6 +286,11 @@ export default function DashboardPage() {
                       />
                     </div>
                   </div>
+                  {error && (
+                    <p className="text-sm text-red-500 font-medium mb-4 text-center">
+                      {error}
+                    </p>
+                  )}
                   <DialogFooter>
                     <Button type="button" onClick={handleDialogSubmit} className="bg-blue-600 hover:bg-blue-700 text-white">추가하기</Button>
                   </DialogFooter>
